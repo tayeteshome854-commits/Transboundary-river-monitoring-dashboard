@@ -1,0 +1,1090 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Ethiopian Transboundary River Monitoring Dashboard</title>
+
+<link
+rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial;
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+}
+
+header{
+    background:#0fab91;
+    color:rgb(52, 5, 206);
+    padding:15px;
+    text-align:center;
+}
+
+.container{
+    display:flex;
+    flex:1;
+    min-height:0;
+}
+
+.sidebar{
+    width:230px;
+    background:#e2e8f0;
+    border-right:1px solid #ddd;
+    padding:20px;
+    overflow-y:auto;
+}
+
+.main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
+
+#map{
+    flex:1;
+}
+
+.bottom-panel{
+    height:300px;
+    background:#f3f3f4;
+    padding:15px;
+
+    display:flex;
+    gap:15px;
+}
+
+.card{
+    flex:1;
+    background:white;
+    padding:10px;
+    border-radius:5px;
+    height:100%;
+}
+
+canvas{
+    width:100% !important;
+    height:220px !important;
+}
+
+.section{
+    margin-bottom:20px;
+}
+
+select,
+button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border-radius:5px;
+    border:1px solid #ccc;
+}
+
+button{
+    background:#2563eb;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#1d4ed8;
+}
+
+.status{
+    margin-top:20px;
+    background:#eef2ff;
+    padding:10px;
+    border-radius:5px;
+}
+.loading{
+    color:#2563eb;
+    font-weight:bold;
+}
+.legend{
+    position:absolute;
+    bottom:320px;
+    right:20px;
+    z-index:2000;
+
+    background:white;
+    padding:12px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.2);
+
+    font-size:12px;
+    min-width:140px;
+}
+
+.legend h4{
+    margin-bottom:10px;
+    font-size:14px;
+}
+
+.legend-item{
+    display:flex;
+    align-items:center;
+    margin-bottom:6px;
+}
+
+.legend-color{
+    width:18px;
+    height:18px;
+    margin-right:8px;
+    border-radius:3px;
+}
+
+.footer{
+    background:#cbd5e1;
+    padding:10px 20px;
+    font-size:14px;
+    font-weight:bold;
+    text-align:right;
+}
+/* ADD RESPONSIVE CSS HERE */
+
+@media(max-width:1000px){
+
+    .container{
+        flex-direction:column;
+    }
+
+    .sidebar{
+        width:100%;
+        height:auto;
+    }
+
+    .bottom-panel{
+        flex-direction:column;
+        height:auto;
+    }
+
+    .card{
+        min-height:320px;
+    }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+<h1>🌍 Ethiopian Transboundary River Monitoring Dashboard</h1>
+
+<p>
+Monitoring river conditions in Ethiopia using Google Earth Engine
+</p>
+
+</header>
+
+<div class="container">
+
+<!-- SIDEBAR -->
+
+<div class="sidebar">
+
+<!-- BASIN SECTION -->
+
+<div class="section">
+
+<h3>Select Basin</h3>
+
+<select id="basinSelect">
+
+<option value="NONE">None</option>
+<option value="Abay">Abay</option>
+<option value="Baro_Akobo">Baro Akobo</option>
+<option value="Genale_Dawa">Genale Dawa</option>
+<option value="Omo">Omo</option>
+<option value="Tekeze">Tekeze</option>
+<option value="Wabe_Shabale">Wabe Shabale</option>
+
+</select>
+
+</div>
+
+<!-- VARIABLE SECTION -->
+
+<div class="section">
+
+<h3>Select Variable</h3>
+
+<select id="variableSelect">
+
+<option value="NDVI">NDVI</option>
+<option value="EVI">EVI</option>
+<option value="NDWI">NDWI</option>
+<option value="MNDWI">MNDWI</option>
+<option value="RAINFALL">RAINFALL</option>
+<option value="LST">LST</option>
+<option value="AIR_TEMP">AIR TEMP</option>
+<option value="ET">ET</option>
+<option value="SOIL_MOISTURE">SOIL MOISTURE</option>
+
+</select>
+
+<button id="refreshBtn">
+Load Dashboard
+</button>
+
+</div>
+<!-- NEW COMPARISON SECTION -->
+
+<div class="section">
+
+<h3>Compare Variables</h3>
+
+<div id="compareVariables">
+
+<label><input type="checkbox" value="NDVI"> NDVI</label><br>
+<label><input type="checkbox" value="EVI"> EVI</label><br>
+<label><input type="checkbox" value="NDWI"> NDWI</label><br>
+<label><input type="checkbox" value="MNDWI"> MNDWI</label><br>
+<label><input type="checkbox" value="RAINFALL"> Rainfall</label><br>
+<label><input type="checkbox" value="LST"> LST</label><br>
+<label><input type="checkbox" value="AIR_TEMP"> Air Temp</label><br>
+<label><input type="checkbox" value="ET"> ET</label><br>
+<label><input type="checkbox" value="SOIL_MOISTURE"> Soil Moisture</label>
+
+</div>
+
+<button id="compareBtn">
+Load Comparison
+</button>
+
+</div>
+
+<div class="section">
+
+<h3>Select Overlay</h3>
+
+<select id="overlaySelect">
+
+<option value="NONE">None</option>
+<option value="RIVER">River Buffer</option>
+<option value="GREEN">Green Legacy</option>
+
+</select>
+
+</div>
+
+<div class="section">
+
+<h3>Select Year</h3>
+
+<label for="yearSlider">Year:</label>
+
+<input
+type="range"
+id="yearSlider"
+min="2015"
+max="2025"
+value="2025"
+step="1"
+>
+
+<p id="yearLabel">2025</p>
+
+</div>
+
+<div class="status" id="statusMsg">
+
+System Initializing...
+
+</div>
+
+</div>
+
+<!-- MAIN -->
+
+<div class="main">
+
+<div id="map"></div>
+
+<div id="legend" class="legend"></div>
+
+<!-- CHART SECTION -->
+
+<div class="bottom-panel">
+
+<!-- SINGLE CHART -->
+
+<div class="card">
+
+<h3>Variable Time Series</h3>
+
+<canvas id="trendChart"></canvas>
+
+</div>
+
+<!-- COMPARISON CHART -->
+
+<div class="card">
+
+<h3>Comparison Chart</h3>
+
+
+<canvas id="compareChart"></canvas>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- FOOTER -->
+
+<footer class="footer">
+
+<p>
+
+<span style="color:black;">
+By:
+</span>
+
+<span style="color:blue;">
+
+</span>
+
+|
+
+<span style="color:orange;">
+Space Science and Geospatial Institute
+</span>
+
+|
+<span style="color:red;">
+SSGI
+</span>
+
+</p>
+
+</footer>
+
+<script>
+const tileCache = {};
+const timeseriesCache = {};
+
+const API =
+"http://127.0.0.1:8010/api";
+
+let map;
+let basinLayer = null;
+let geeLayer = null;
+let riverLayer = null;
+let greenLayer = null;
+
+let trendChart = null;
+let compareChart = null;
+let currentLayerKey = null;
+function initMap(){
+
+    map = L.map("map").setView(
+        [8.7,39.5],
+        6
+    );
+
+    const carto = L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+            attribution:"© OpenStreetMap © CARTO",
+            subdomains:"abcd",
+            maxZoom:20
+        }
+    );
+
+    const esri = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+            attribution:"Tiles © Esri"
+        }
+    );
+
+    carto.addTo(map);
+
+    const baseMaps = {
+        "Carto Light":carto,
+        "ESRI Satellite":esri
+    };
+
+    L.control.layers(baseMaps).addTo(map);
+}
+
+function updateStatus(msg){
+
+    document.getElementById(
+        "statusMsg"
+    ).innerHTML = msg;
+}
+function updateLegend(variable){
+
+    const legends = {
+
+        NDVI:{
+            colors:["brown","yellow","green"],
+            labels:["Low","Medium","High"]
+        },
+
+        NDWI:{
+            colors:["white","blue"],
+            labels:["Dry","Water"]
+        },
+
+        LST:{
+            colors:["blue","yellow","red"],
+            labels:["Cold","Moderate","Hot"]
+        }
+    };
+
+    const legend =
+        legends[variable];
+
+    const container =
+        document.getElementById(
+            "legend"
+        );
+
+    if(!legend){
+
+        container.innerHTML = "";
+        return;
+    }
+
+    let html =
+        `<h4>${variable}</h4>`;
+
+    legend.colors.forEach(
+        (color,index)=>{
+
+        html += `
+        <div class="legend-item">
+
+            <div
+            class="legend-color"
+            style="background:${color}"
+            ></div>
+
+            <span>
+                ${legend.labels[index]}
+            </span>
+
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}
+async function api(endpoint){
+
+    const response = await fetch(
+        API + endpoint
+    );
+
+    return await response.json();
+}
+async function preloadTimeseries(){
+
+    const basin =
+        document.getElementById(
+            "basinSelect"
+        ).value;
+
+    if(basin === "NONE"){
+        return;
+    }
+
+    const variables = [
+        "NDVI",
+        "EVI",
+        "NDWI",
+        "MNDWI",
+        "RAINFALL",
+        "LST",
+        "AIR_TEMP",
+        "ET",
+        "SOIL_MOISTURE"
+    ];
+
+    for(const variable of variables){
+
+        const key =
+            `${basin}_${variable}`;
+
+        if(!timeseriesCache[key]){
+
+            const data =
+                await api(
+                    `/basin/${basin}/timeseries/${variable}`
+                );
+
+            timeseriesCache[key] = data;
+        }
+    }
+}
+async function loadBoundary(){
+
+    const basin =
+        document.getElementById(
+            "basinSelect"
+        ).value;
+
+    if(basin === "NONE"){
+
+        if(basinLayer){
+            map.removeLayer(basinLayer);
+        }
+
+        return;
+    }
+
+    const geojson =
+        await api(
+            `/basin/${basin}/geojson`
+        );
+
+    if(basinLayer){
+        map.removeLayer(basinLayer);
+    }
+
+    basinLayer = L.geoJSON(
+        geojson,
+        {
+            style:{
+                color:"#ff7800",
+                weight:2,
+                fillOpacity:0.05
+            }
+        }
+    ).addTo(map);
+
+    map.fitBounds(
+        basinLayer.getBounds()
+    );
+}
+
+async function loadTileLayer(){
+
+    const basin =
+        document.getElementById(
+            "basinSelect"
+        ).value;
+
+    if(basin === "NONE"){
+        return;
+    }
+
+    const variable =
+        document.getElementById(
+            "variableSelect"
+        ).value;
+
+    const year =
+        document.getElementById(
+            "yearSlider"
+        ).value;
+    const cacheKey =
+        `${basin}_${variable}_${year}`;
+
+if(currentLayerKey === cacheKey){
+
+    updateStatus(
+        "Layer already loaded"
+    );
+
+    return;
+}
+
+currentLayerKey = cacheKey;
+
+let data;
+
+if(tileCache[cacheKey]){
+
+    data = tileCache[cacheKey];
+
+    updateStatus(
+        "Loaded from cache"
+    );
+}
+
+else{
+
+    updateStatus(
+        '<span class="loading">Loading map...</span>'
+    );
+
+    data = await api(
+        `/tiles/${basin}/${variable}/${year}`
+    );
+
+    tileCache[cacheKey] = data;
+}
+
+    if(geeLayer){
+        map.removeLayer(geeLayer);
+    }
+
+    geeLayer = L.tileLayer(
+        data.tile_url,
+        {
+            attribution:"Google Earth Engine",
+            opacity:0.7
+        }
+    );
+
+    geeLayer.addTo(map);
+updateLegend(variable);
+    updateStatus(
+        `${variable} loaded successfully`
+    );
+}
+
+function getChartColor(variable){
+
+    const colors = {
+
+        "NDVI":"green",
+        "EVI":"darkgreen",
+        "NDWI":"blue",
+        "MNDWI":"cyan",
+        "RAINFALL":"darkblue",
+        "LST":"red",
+        "AIR_TEMP":"orange",
+        "ET":"purple",
+        "SOIL_MOISTURE":"brown"
+    };
+
+    return colors[variable] || "black";
+}
+
+async function loadChart(){
+
+    const basin =
+        document.getElementById(
+            "basinSelect"
+        ).value;
+if(basin === "NONE"){
+    return;
+}
+    const variable =
+        document.getElementById(
+            "variableSelect"
+        ).value;
+
+    const cacheKey =
+    `${basin}_${variable}`;
+
+let data;
+
+if(timeseriesCache[cacheKey]){
+
+    data = timeseriesCache[cacheKey];
+
+    updateStatus(
+        "Chart loaded from cache"
+    );
+}
+
+else{
+
+    updateStatus(
+        '<span class="loading">Loading chart...</span>'
+    );
+
+    data = await api(
+        `/basin/${basin}/timeseries/${variable}`
+    );
+
+    timeseriesCache[cacheKey] = data;
+}
+
+    const years =
+        data.map(d => d.year);
+
+    const values =
+        data.map(d => d.value);
+
+    const ctx =
+        document.getElementById(
+            "trendChart"
+        );
+
+   if(trendChart){
+    trendChart.destroy();
+}
+
+   const chartType =
+    (variable === "RAINFALL" ||
+     variable === "ET")
+        ? "bar"
+        : "line";
+
+const chartColor =
+    getChartColor(variable);
+
+let backgroundColor = chartColor;
+
+if(chartType === "bar"){
+
+    const gradient =
+        ctx.getContext("2d")
+           .createLinearGradient(
+                0,0,0,220
+           );
+
+    if(variable === "RAINFALL"){
+
+        gradient.addColorStop(
+            0,
+            "rgba(37,99,235,0.9)"
+        );
+
+        gradient.addColorStop(
+            1,
+            "rgba(147,197,253,0.4)"
+        );
+    }
+
+    else if(variable === "ET"){
+
+        gradient.addColorStop(
+            0,
+            "rgba(34,197,94,0.9)"
+        );
+
+        gradient.addColorStop(
+            1,
+            "rgba(134,239,172,0.4)"
+        );
+    }
+
+    backgroundColor = gradient;
+}
+
+trendChart = new Chart(
+    ctx,
+    {
+        type:chartType,
+
+        data:{
+            labels:years,
+
+            datasets:[
+                {
+                    label:variable,
+
+                    data:values,
+
+                    borderColor:chartColor,
+
+                    backgroundColor:
+                        backgroundColor,
+
+                    borderWidth:2,
+
+                    borderRadius:8,
+
+                    hoverBorderWidth:3,
+
+                    fill:
+                        chartType === "line",
+
+                    tension:0.35
+                }
+            ]
+        },
+
+        options:{
+
+            responsive:true,
+
+            maintainAspectRatio:false,
+
+            plugins:{
+
+                legend:{
+                    display:false
+                },
+
+                tooltip:{
+                    backgroundColor:"#111827",
+                    padding:12
+                }
+            },
+
+            scales:{
+
+                x:{
+                    grid:{
+                        display:false
+                    }
+                },
+
+                y:{
+                    beginAtZero:false,
+
+                    grid:{
+                        color:"#e5e7eb"
+                    }
+                }
+            }
+        }
+    }
+);
+}
+async function loadComparisonChart(){
+
+    const basin =
+        document.getElementById(
+            "basinSelect"
+        ).value;
+if(basin === "NONE"){
+    return;
+}
+    const selected =
+    Array.from(
+        document.querySelectorAll(
+            '#compareVariables input:checked'
+        )
+    ).map(
+        checkbox => checkbox.value
+    );
+
+    const datasets = [];
+
+    let labels = [];
+
+    for(const variable of selected){
+
+       const cacheKey =
+    `${basin}_${variable}`;
+
+let data;
+
+if(timeseriesCache[cacheKey]){
+
+    data = timeseriesCache[cacheKey];
+}
+
+else{
+
+    data = await api(
+        `/basin/${basin}/timeseries/${variable}`
+    );
+
+    timeseriesCache[cacheKey] = data;
+}
+
+        labels =
+            data.map(d => d.year);
+
+        datasets.push({
+
+            label:variable,
+
+            data:
+                data.map(d => d.value),
+
+            borderColor:
+                getChartColor(variable),
+
+            backgroundColor:
+                getChartColor(variable),
+
+            fill:false,
+
+            tension:0.3
+        });
+    }
+
+    const ctx =
+        document.getElementById(
+            "compareChart"
+        );
+
+    if(compareChart){
+        compareChart.destroy();
+    }
+
+    compareChart = new Chart(
+        ctx,
+        {
+            type:"line",
+
+            data:{
+                labels:labels,
+                datasets:datasets
+            },
+
+            options:{
+                responsive:true,
+                maintainAspectRatio:false
+            }
+        }
+    );
+}
+
+async function loadRiverBuffer(){
+
+    const basin =
+        document.getElementById(
+            "basinSelect"
+        ).value;
+
+    const data =
+        await api(
+            `/buffer/${basin}/geojson`
+        );
+
+    if(riverLayer){
+        map.removeLayer(riverLayer);
+    }
+
+    riverLayer = L.geoJSON(
+        data,
+        {
+            style:{
+                color:"#00b894",
+                weight:2,
+                fillOpacity:0.25
+            }
+        }
+    ).addTo(map);
+}
+
+async function loadGreenLegacy(){
+
+    const data =
+        await api(
+            `/green-legacy/geojson`
+        );
+
+    if(greenLayer){
+        map.removeLayer(greenLayer);
+    }
+
+    greenLayer = L.geoJSON(
+        data,
+        {
+            style:{
+                color:"#16a34a",
+                weight:2,
+                fillOpacity:0.4
+            }
+        }
+    ).addTo(map);
+}
+
+async function loadDashboard(){
+updateStatus(
+    "Loading data..."
+);
+    await loadBoundary();
+
+    await loadTileLayer();
+
+    await loadChart();
+}
+
+document.getElementById(
+    "refreshBtn"
+).addEventListener(
+    "click",
+    loadDashboard
+);
+
+document.getElementById(
+    "compareBtn"
+).addEventListener(
+    "click",
+    loadComparisonChart
+);
+
+document.getElementById(
+    "overlaySelect"
+).addEventListener(
+    "change",
+    async () => {
+
+        const overlay =
+            document.getElementById(
+                "overlaySelect"
+            ).value;
+
+        if(riverLayer){
+            map.removeLayer(riverLayer);
+        }
+
+        if(greenLayer){
+            map.removeLayer(greenLayer);
+        }
+
+        if(overlay === "RIVER"){
+            await loadRiverBuffer();
+        }
+
+        else if(overlay === "GREEN"){
+            await loadGreenLegacy();
+        }
+    }
+);
+
+document.getElementById(
+    "variableSelect"
+).addEventListener(
+    "change",
+    async () => {
+
+        await loadTileLayer();
+
+        await loadChart();
+    }
+);
+
+document.getElementById(
+    "yearSlider"
+).addEventListener(
+    "input",
+    async function(){
+
+        document.getElementById(
+            "yearLabel"
+        ).innerHTML = this.value;
+
+        await loadTileLayer();
+    }
+);
+
+initMap();
+
+loadDashboard();
+
+</script>
+
+</body>
+</html>
+```
