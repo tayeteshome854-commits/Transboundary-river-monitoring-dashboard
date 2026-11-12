@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Near-real-time satellite monitoring of Ethiopian transboundary river basins">
+<title>Ethiopian Transboundary River Monitoring Dashboard</title>
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main-region">Skip to dashboard content</a>
+
+<header class="app-header">
+  <div class="brand">
+    <h1>Ethiopian Transboundary River Monitoring</h1>
+    <p class="subtitle">
+      Near-real-time satellite monitoring of vegetation and surface-water indicators ·
+      Space Science and Geospatial Institute (SSGI)
+    </p>
+  </div>
+
+  <div class="header-status">
+    <div class="status-item" id="eeStatus" title="Earth Engine data source state">
+      <span class="dot" id="eeDot"></span>
+      <span id="eeText">checking data source…</span>
+    </div>
+    <div class="status-item" id="freshnessStatus" title="Latest valid satellite observation">
+      <span class="dot dot-muted"></span>
+      <span id="freshnessText">observation: —</span>
+    </div>
+    <button type="button" class="btn btn-ghost" id="refreshAll" title="Reload every panel from the API">
+      ⟳ Refresh
+    </button>
+  </div>
+</header>
+
+<div class="demo-banner" id="demoBanner" hidden>
+  <strong>DEMONSTRATION DATA.</strong>
+  Earth Engine is not connected, so the values below are synthetic and exist only to exercise the
+  interface. They are not observations and must not be used for decisions. Raster map layers are
+  not generated in this mode.
+</div>
+
+<div class="layout">
+
+  <!-- ============================================ CONTROL PANEL -->
+  <aside class="sidebar" aria-label="Dashboard controls">
+
+    <section class="panel">
+      <h2 class="panel-title">Basin</h2>
+      <label class="field">
+        <span>Select basin</span>
+        <select id="basinSelect"></select>
+      </label>
+      <div class="segmented" role="group" aria-label="Monitoring region">
+        <button type="button" class="segment is-active" data-region="basin">Whole basin</button>
+        <button type="button" class="segment" data-region="buffer">River corridor</button>
+      </div>
+      <p class="hint" id="regionHint"></p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Indicator</h2>
+      <div class="chip-group" id="indicatorChips"></div>
+      <p class="hint" id="indicatorCaveat"></p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Period</h2>
+      <div class="field-row">
+        <label class="field">
+          <span>From</span>
+          <input type="date" id="startDate">
+        </label>
+        <label class="field">
+          <span>To</span>
+          <input type="date" id="endDate">
+        </label>
+      </div>
+      <div class="preset-row" id="periodPresets">
+        <button type="button" class="btn btn-small" data-days="30">30 d</button>
+        <button type="button" class="btn btn-small" data-days="90">90 d</button>
+        <button type="button" class="btn btn-small" data-days="365">1 y</button>
+      </div>
+      <button type="button" class="btn btn-primary" id="applyPeriod">Apply period</button>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Map layers</h2>
+      <label class="check">
+        <input type="checkbox" id="layerBasin" checked>
+        <span>Basin boundary</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="layerSatellite" checked>
+        <span>Satellite indicator layer</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="layerBuffer">
+        <span>River corridor buffer</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="layerGreen">
+        <span>Green Legacy planting sites</span>
+      </label>
+      <label class="field">
+        <span>Basemap</span>
+        <select id="basemapSelect">
+          <option value="carto">Carto light</option>
+          <option value="esri">Esri world imagery</option>
+          <option value="osm">OpenStreetMap</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Indicator opacity <output id="opacityValue">70%</output></span>
+        <input type="range" id="opacityRange" min="10" max="100" step="5" value="70">
+      </label>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Export</h2>
+      <button type="button" class="btn" id="exportStatsCsv">Statistics CSV</button>
+      <button type="button" class="btn" id="exportSeriesCsv">Time series CSV</button>
+      <button type="button" class="btn" id="exportMapPng">Map view PNG</button>
+      <button type="button" class="btn" id="exportReport">Summary PDF</button>
+      <p class="hint">Exports carry the selected basin, region, indicator, dates, dataset and mask.</p>
+    </section>
+
+  </aside>
+
+  <!-- ============================================ MAIN REGION -->
+  <main class="main" id="main-region">
+
+    <div class="map-wrap">
+      <div id="map" role="application" aria-label="Basin map"></div>
+      <div class="legend" id="legend" aria-live="polite"></div>
+      <div class="map-readout" id="mapReadout">—</div>
+      <div class="map-overlay-note" id="mapNote" hidden></div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Analysis panels">
+      <button class="tab is-active" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="series">Time series</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="compare">Compare</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="corridor">River corridor</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="green">Green Legacy</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="hydro">Hydrology</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="data">Data &amp; methods</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="tab-panel is-active" id="panel-overview" role="tabpanel">
+      <div class="kpi-row" id="kpiRow"></div>
+      <div class="table-scroll">
+        <table class="data-table" id="overviewTable">
+          <thead>
+            <tr>
+              <th>Basin</th>
+              <th>Area (km²)</th>
+              <th>NDVI</th>
+              <th>NDWI</th>
+              <th>MNDWI</th>
+              <th>Observations</th>
+              <th>Coverage</th>
+              <th>Latest observation</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="footnote" id="overviewFootnote"></p>
+    </section>
+
+    <!-- TIME SERIES -->
+    <section class="tab-panel" id="panel-series" role="tabpanel">
+      <div class="panel-controls">
+        <label class="field inline">
+          <span>Indicator</span>
+          <select id="seriesIndicator"></select>
+        </label>
+        <label class="field inline">
+          <span>From year</span>
+          <input type="number" id="seriesStartYear" min="2000" max="2100" value="2017">
+        </label>
+        <label class="field inline">
+          <span>To year</span>
+          <input type="number" id="seriesEndYear" min="2000" max="2100" value="2026">
+        </label>
+        <label class="field inline">
+          <span>Aggregation</span>
+          <select id="seriesAggregation">
+            <option value="year">Annual</option>
+            <option value="month">Monthly</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-primary" id="loadSeries">Load series</button>
+      </div>
+      <div class="chart-wrap"><canvas id="seriesChart" height="220"></canvas></div>
+      <div class="series-meta" id="seriesMeta"></div>
+    </section>
+
+    <!-- COMPARE -->
+    <section class="tab-panel" id="panel-compare" role="tabpanel">
+      <div class="panel-controls">
+        <div class="chip-group" id="compareBasins"></div>
+        <label class="field inline">
+          <span>Indicator</span>
+          <select id="compareIndicator"></select>
+        </label>
+        <button type="button" class="btn btn-primary" id="loadCompare">Load comparison</button>
+      </div>
+      <div class="chart-wrap"><canvas id="compareChart" height="220"></canvas></div>
+
+      <h3 class="subsection">Change detection</h3>
+      <div class="panel-controls">
+        <label class="field inline"><span>Baseline from</span><input type="date" id="baselineStart"></label>
+        <label class="field inline"><span>Baseline to</span><input type="date" id="baselineEnd"></label>
+        <label class="field inline"><span>Comparison from</span><input type="date" id="comparisonStart"></label>
+        <label class="field inline"><span>Comparison to</span><input type="date" id="comparisonEnd"></label>
+        <label class="check inline"><input type="checkbox" id="changeMapToggle" checked><span>Show difference map</span></label>
+        <button type="button" class="btn btn-primary" id="loadChange">Compute difference</button>
+      </div>
+      <div class="change-summary" id="changeSummary"></div>
+    </section>
+
+    <!-- RIVER CORRIDOR -->
+    <section class="tab-panel" id="panel-corridor" role="tabpanel">
+      <p class="footnote" id="corridorNote"></p>
+      <div class="table-scroll">
+        <table class="data-table" id="corridorTable">
+          <thead>
+            <tr>
+              <th>Indicator</th>
+              <th>River corridor</th>
+              <th>Whole basin</th>
+              <th>Difference</th>
+              <th>Corridor observations</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- GREEN LEGACY -->
+    <section class="tab-panel" id="panel-green" role="tabpanel">
+      <div class="kpi-row" id="greenKpis"></div>
+      <div class="table-scroll">
+        <table class="data-table" id="greenTable">
+          <thead>
+            <tr><th>Region</th><th>Planting sites</th><th>Area (ha)</th><th>Seedlings recorded</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="notice" id="greenNotice"></div>
+    </section>
+
+    <!-- HYDROLOGY -->
+    <section class="tab-panel" id="panel-hydro" role="tabpanel">
+      <div class="notice" id="hydroNotice"></div>
+      <div class="table-scroll">
+        <table class="data-table" id="hydroTable">
+          <thead><tr><th>Contract field</th><th>Expected content</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- DATA & METHODS -->
+    <section class="tab-panel" id="panel-data" role="tabpanel">
+      <div class="method-grid" id="methodGrid"></div>
+      <h3 class="subsection">Source datasets</h3>
+      <div class="table-scroll">
+        <table class="data-table" id="inventoryTable">
+          <thead>
+            <tr><th>Dataset</th><th>File</th><th>CRS</th><th>Features</th><th>Notes</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="notice" id="scopeNotice"></div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="app-footer">
+  <span>Ethiopian Transboundary River Monitoring Dashboard · SSGI</span>
+  <span id="footerMeta"></span>
+</footer>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/vendor/chart.umd.js"></script>
+<script src="/static/vendor/html2canvas.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
