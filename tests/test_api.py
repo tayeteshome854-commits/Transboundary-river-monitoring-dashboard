@@ -307,8 +307,15 @@ def test_green_legacy_endpoints(client):
     assert summary["feature_count"] == 21429
     features = client.get("/api/green-legacy/geojson?limit=20").json()
     assert len(features["features"]) == 20
+
     wereda = client.get("/api/green-legacy/by-wereda").json()
-    assert wereda["provenance"]["aggregation"] == "region / zone / wereda"
+    assert wereda["aggregation"] == "region / zone / wereda"
+    assert wereda["record_count"] > 1000
+    # The repository has no wereda boundaries, so this must be a table, not a map
+    # layer pretending to have administrative geometry.
+    assert "records" in wereda and "features" not in wereda
+    assert "not present in the source data" in wereda["provenance"]["geometry"]
+    assert wereda["total_area_ha"] == pytest.approx(summary["total_area_ha"], rel=1e-6)
 
 
 def test_report_renders_html(client, fake):

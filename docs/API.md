@@ -106,7 +106,13 @@ plus a `data_quality` block describing the `Area_Ha` (m²) defect and the unusab
 `Planted` fields.
 
 ### `GET /api/green-legacy/by-wereda`
-Wereda-level aggregate (sites, hectares, seedlings) — small enough for a choropleth.
+Planting effort aggregated to region / zone / wereda: sites, hectares (computed from geometry)
+and recorded seedlings — 1,398 records, ~165 kB.
+
+**No geometry is returned.** The repository holds planting-site polygons, not wereda
+administrative boundaries; dissolving scattered site polygons would look like a boundary while
+being nothing of the sort. The response says so in `provenance.geometry` and points to
+`/api/green-legacy/geojson` for mapping the sites themselves.
 
 ### `GET /api/data/inventory`
 Every vector dataset with its CRS, feature count, invalid-geometry count and warnings.

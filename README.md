@@ -126,7 +126,7 @@ app/                  application package
   main.py             FastAPI routes
 static/               dashboard front end (index.html, styles.css, app.js, vendor/)
 shapefiles/           project vector data (unmodified)
-tests/                99 tests + numerical Earth Engine fake + front-end smoke test
+tests/                100 tests + numerical Earth Engine fake + front-end smoke test
 scripts/              cache warming
 docs/                 audit, methods, API, deployment, testing, change log
 legacy/               original main.py / gee_service.py / index.html (rollback)
@@ -138,7 +138,7 @@ legacy/               original main.py / gee_service.py / index.html (rollback)
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest tests -q          # 99 tests
+python -m pytest tests -q          # 100 tests
 node tests/frontend_smoke.mjs      # front end against a running server
 ```
 

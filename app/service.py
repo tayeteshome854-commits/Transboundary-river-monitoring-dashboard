@@ -173,6 +173,7 @@ def demo_statistics(basin_id: str, indicator_ids: Iterable[str], window: dict[st
             "basin_name": get_basin(basin_id).display_name,
             "region": region_kind,
             "region_label": region_label(basin_id, region_kind),
+            "region_area_km2": region_area_km2(basin_id, region_kind),
             "window": window,
             "earth_engine": ee_client.describe(),
             "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

@@ -49,7 +49,7 @@
 | File | Purpose |
 | --- | --- |
 | `tests/fake_ee.py` | numerical Earth Engine stand-in (test infrastructure) |
-| `tests/test_indicators.py`, `test_satellite_processing.py`, `test_timeseries.py`, `test_geometry.py`, `test_api.py`, `test_exports.py` | 99 tests |
+| `tests/test_indicators.py`, `test_satellite_processing.py`, `test_timeseries.py`, `test_geometry.py`, `test_api.py`, `test_exports.py` | 100 tests |
 | `tests/frontend_smoke.mjs` | front-end test in jsdom against the live API |
 | `tests/conftest.py`, `tests/__init__.py` | fixtures |
 | `docs/AUDIT.md`, `SCIENTIFIC_METHODS.md`, `API.md`, `DEPLOYMENT.md`, `TESTING.md`, `CHANGELOG.md` | deliverable documentation |
@@ -133,7 +133,34 @@ Rollback notes:
 
 ---
 
-## 5. Outstanding items
+## 5. Follow-up fixes (end-to-end sweep after the first push)
+
+The endpoints below were exercised over HTTP after the branch was pushed. Both defects were
+real and are fixed on this branch; neither is a documentation-only change.
+
+| # | Defect observed | Cause | Fix |
+| --- | --- | --- | --- |
+| 1 | Demonstration CSV exports emitted blank metadata: `# region_area_km2,` (statistics) and `# basin_name,` / `# region,` (time series) | the demonstration payloads did not carry the keys `app/exports.py` reads for its metadata header | `app/service.demo_statistics` now sets `region_area_km2`; the time-series demo branch in `app/main.py` now sets `basin_name`, `region` and `region_label` (and imports `get_basin`) |
+| 2 | `GET /api/green-legacy/by-wereda` returned **4,304,924 bytes**, and dissolved scattered planting-site polygons into shapes that read as wereda administrative boundaries | no wereda boundary data exists in `shapefiles/`, so the union of site polygons was serving as a fake choropleth layer | endpoint rewritten as a statistics table (region / zone / wereda → sites, hectares, seedlings): **147,748 bytes**, 1,398 records, no geometry, with `provenance.geometry` stating that wereda boundaries are absent and pointing to `/api/green-legacy/geojson` for mapping sites |
+
+Both changes carry a regression test, and the suite grew from 99 to 100:
+
+* `test_missing_metadata_is_marked_not_silently_blank` (`tests/test_exports.py`) — a metadata key
+  the payload never carried must print `unavailable`, not an empty cell. `_metadata_lines` in
+  `app/exports.py` was hardened so this class of blank cannot recur silently.
+* `test_green_legacy_endpoints` (`tests/test_api.py`) — asserts the wereda response has `records`
+  and no `features`, that `provenance.geometry` names the missing boundary data, and that its
+  hectare total matches the Green Legacy summary total (651,543.8 ha).
+
+Side effect worth recording: `GEOMETRY_SCHEMA_VERSION` moved `2 → 5` because the derived wereda
+payload changed shape; the cache key includes that version, so stale on-disk entries are ignored
+automatically. Rebuilding with `python scripts/build_geojson.py --clear` now produces 16 entries
+totalling 3,124 kB (was 7,391 kB).
+
+---
+
+## 6. Outstanding items
+
 
 | # | Item | Owner / next step |
 | --- | --- | --- |
@@ -144,3 +171,4 @@ Rollback notes:
 | 5 | Remove `shapefiles/shapefiles.rar` (10 MB, redundant) | awaiting explicit instruction |
 | 6 | Reach-level (upstream/middle/downstream) monitoring | needs reach segmentation data that does not exist in the repository |
 | 7 | Locally validated water thresholds | needs reference water data and accuracy assessment |
+| 8 | Wereda administrative boundaries (to make a true Green Legacy choropleth possible) | data owner — the repository holds planting-site polygons only, so the wereda aggregate is a table, not a map layer |

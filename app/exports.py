@@ -24,7 +24,15 @@ def _writer(lines: list[list[Any]]) -> str:
 
 
 def _metadata_lines(pairs: Iterable[tuple[str, Any]]) -> list[list[Any]]:
-    return [[f"# {key}", value if value is not None else ""] for key, value in pairs]
+    """Metadata header rows.
+
+    A missing key is written as ``unavailable`` rather than left blank: a silent
+    empty cell in a metadata line looks like a formatting artefact and hides the
+    fact that the payload never carried the field.  Blank cells are reserved for
+    values that are legitimately absent from the data (see the data rows).
+    """
+
+    return [[f"# {key}", "unavailable" if value is None else value] for key, value in pairs]
 
 
 def timeseries_csv(payload: dict[str, Any]) -> str:
@@ -50,7 +58,7 @@ def timeseries_csv(payload: dict[str, Any]) -> str:
             ("compositing", source.get("compositing")),
             ("processing_version", source.get("processing_version")),
             ("interpolation", payload.get("interpolation")),
-            ("data_status", payload.get("data_status", "")),
+            ("data_status", payload.get("data_status")),
             ("warning", payload.get("warning", "")),
             (GENERATED_KEY, payload.get(GENERATED_KEY)),
         ]

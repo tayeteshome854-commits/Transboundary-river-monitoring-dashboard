@@ -188,7 +188,8 @@ this to the last pin, silently. → single, consistent, constrained list plus a 
 merged geometry with no attributes, and the Green Legacy layer (21,429 polygons ≈ 18 MB as
 GeoJSON) would have been sent whole to the browser. → geometry is simplified with a documented
 tolerance, cached on disk keyed by source mtime, and Green Legacy is served filtered/paginated
-with a truncated flag, plus a wereda-level aggregate.
+with a truncated flag, plus a wereda-level statistics table (the source data has no wereda
+administrative boundaries, so no choropleth is offered).
 
 **M4 · `ee.FeatureCollection.geometry().getInfo()` loses attributes.** The old GeoJSON helper
 returned one feature with `properties: {}`, so popups could not show basin name, area or source.

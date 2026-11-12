@@ -45,7 +45,7 @@ AREA_CRS = CRS.from_user_input("ESRI:102022")  # Africa Albers Equal Area Conic
 AREA_CRS_NAME = "ESRI:102022 (Africa Albers Equal Area Conic)"
 
 #: Bump when the derivation logic changes so cached artefacts are rebuilt.
-GEOMETRY_SCHEMA_VERSION = "2"
+GEOMETRY_SCHEMA_VERSION = "5"
 
 _memory_cache: TTLCache = TTLCache(maxsize=32, ttl_seconds=3600, name="geometry")
 
@@ -552,36 +552,54 @@ def green_legacy_geojson(
 
 
 def green_legacy_by_wereda() -> dict[str, Any]:
-    """Wereda-level aggregation — a small, fast choropleth of planting effort."""
+    """Planting effort aggregated to wereda level — statistics, not a map layer.
+
+    The repository contains planting-site polygons, **not** wereda administrative
+    boundaries.  Dissolving the site polygons by wereda produces a union of
+    scattered site shapes, which would read as an administrative boundary while
+    being nothing of the sort.  This endpoint therefore returns a table (region /
+    zone / wereda → sites, hectares, seedlings) and says so explicitly.  Map the
+    sites themselves with :func:`green_legacy_geojson`.
+    """
 
     key = f"{GREEN_LEGACY_SCHEMA_KEY()}:by_wereda"
 
     def build() -> dict[str, Any]:
         frame = green_legacy_frame()
-        web = to_web(frame, 200.0)
-        web = web.assign(_key=web["Region"].astype(str) + " / " + web["Zone"].astype(str) + " / " + web["Wereda"].astype(str))
-        grouped = web.dissolve(by="_key", as_index=False, aggfunc={"OBJECTID": "count", "area_ha_computed": "sum", "Seedling": "sum"})
-        features = [
-            _feature(
-                row.geometry,
-                {
-                    "admin": row["_key"],
-                    "sites": int(row["OBJECTID"]),
-                    "area_ha": round(float(row["area_ha_computed"]), 1),
-                    "seedlings": int(row["Seedling"]),
-                },
-            )
+        frame = frame.assign(
+            _key=frame["Region"].astype(str) + " / " + frame["Zone"].astype(str) + " / " + frame["Wereda"].astype(str)
+        )
+        grouped = (
+            frame.groupby(["Region", "Zone", "Wereda", "_key"], dropna=False)
+            .agg(sites=("OBJECTID", "count"), area_ha=("area_ha_computed", "sum"), seedlings=("Seedling", "sum"))
+            .reset_index()
+            .sort_values("sites", ascending=False)
+        )
+        records = [
+            {
+                "region": _jsonable(row["Region"]) or "unrecorded",
+                "zone": _jsonable(row["Zone"]) or "unrecorded",
+                "wereda": _jsonable(row["Wereda"]) or "unrecorded",
+                "sites": int(row["sites"]),
+                "area_ha": round(float(row["area_ha"]), 1),
+                "seedlings": int(row["seedlings"]),
+            }
             for _, row in grouped.iterrows()
         ]
-        payload = _feature_collection(features)
-        payload["provenance"] = {
-            "source_file": GREEN_LEGACY_FILE.name,
+        return {
             "aggregation": "region / zone / wereda",
-            "feature_count_returned": len(features),
-            "output_crs": "EPSG:4326",
-            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "records": records,
+            "record_count": len(records),
+            "total_area_ha": round(float(frame["area_ha_computed"].sum()), 1),
+            "provenance": {
+                "source_file": GREEN_LEGACY_FILE.name,
+                "aggregation": "region / zone / wereda",
+                "record_count": len(records),
+                "geometry": "none — wereda administrative boundaries are not present in the source data",
+                "map_alternative": "/api/green-legacy/geojson (planting-site points or polygons)",
+                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            },
         }
-        return payload
 
     return _cached_json(key, build)
 

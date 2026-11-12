@@ -24,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from . import __version__, exports, geometry, service
-from .config import BASINS, STATIC_DIR, resolve_basin_id, settings
+from .config import BASINS, STATIC_DIR, get_basin, resolve_basin_id, settings
 from .ee_client import ee_client
 from .errors import (
     STATUS_LABELS,
@@ -355,6 +355,9 @@ async def basin_timeseries(
             payload.update(
                 {
                     "basin_id": resolved,
+                    "basin_name": get_basin(resolved).display_name,
+                    "region": region,
+                    "region_label": service.region_label(resolved, region),
                     "window": {"start": f"{start_year}-01-01", "end": f"{end_year}-12-31"},
                 }
             )

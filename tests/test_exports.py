@@ -101,6 +101,26 @@ def test_statistics_csv_leaves_missing_values_empty():
     assert "insufficient_observations" in ndwi_row
 
 
+def test_missing_metadata_is_marked_not_silently_blank():
+    """A metadata line that never got a value must say so, not print an empty cell.
+
+    Regression guard: demonstration payloads once omitted `region_area_km2`,
+    `basin_name` and `region_label`, so the downloads shipped lines such as
+    `# region_area_km2,` with nothing after the comma.
+    """
+
+    sparse = {"basin_id": "tekeze", "indicators": {}, "window": {"start": "2026-08-01", "end": "2026-11-01"}}
+    lines = exports.statistics_csv(sparse).splitlines()
+    area_line = next(line for line in lines if line.startswith("# region_area_km2,"))
+    name_line = next(line for line in lines if line.startswith("# basin_name,"))
+    assert area_line == "# region_area_km2,unavailable"
+    assert name_line == "# basin_name,unavailable"
+
+    series = {"indicator": "ndvi", "label": "NDVI", "series": [], "window": {}}
+    series_lines = exports.timeseries_csv(series).splitlines()
+    assert "# data_status,unavailable" in series_lines
+
+
 def test_timeseries_csv_records_gaps_and_metadata():
     csv_text = exports.timeseries_csv(SERIES_PAYLOAD)
     assert "# interpolation,none — gaps are reported as missing observations" in csv_text

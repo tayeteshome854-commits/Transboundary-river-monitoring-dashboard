@@ -48,7 +48,7 @@ Vector-data tests run against the real shapefiles in `shapefiles/`, and API test
 ### 3.1 Python suite
 
 Command: `python -m pytest tests -q`
-Result: **`99 passed, 3 warnings in 17.23s`**
+Result: **`100 passed, 3 warnings in 15.03s`** (re-run after the follow-up fixes in §4)
 
 | File | Tests | Result | Covers |
 | --- | --- | --- | --- |
@@ -56,9 +56,9 @@ Result: **`99 passed, 3 warnings in 17.23s`**
 | `tests/test_satellite_processing.py` | 19 | PASS | NDVI/EVI/NDWI/MNDWI values, DN→reflectance scaling, QA60 + SCL masking, cloud-threshold screening, median compositing, ancillary scaling, empty-collection handling, statistics with coverage/freshness |
 | `tests/test_geometry.py` | 15 | PASS | real shapefiles: CRS mismatch reporting, equal-area areas, GeoJSON validity (2-D, closed rings), buffer distance, invalid-geometry repair, `Area_Ha` = m², Green Legacy totals/subsetting/capping |
 | `tests/test_timeseries.py` | 5 | PASS | annual values, gaps preserved, monthly aggregation, ancillary scaling, per-period observation counts |
-| `tests/test_api.py` | 32 | PASS | health/readiness, config, vector routes, validation (400/404/422), statistics/tiles/change payloads, overview with and without Earth Engine, hydrology 501, demonstration labelling, cache admin, report HTML, static assets |
-| `tests/test_exports.py` | 5 | PASS | CSV metadata, provenance, empty cells for missing values, comparability reporting |
-| **Total** | **99** | **PASS** | |
+| `tests/test_api.py` | 32 | PASS | health/readiness, config, vector routes, validation (400/404/422), statistics/tiles/change payloads, overview with and without Earth Engine, hydrology 501, demonstration labelling, cache admin, report HTML, static assets, Green Legacy summary/points/wereda-table shape |
+| `tests/test_exports.py` | 6 | PASS | CSV metadata, provenance, empty cells for missing values, missing metadata marked `unavailable`, comparability reporting |
+| **Total** | **100** | **PASS** | |
 
 ### 3.2 Front-end test
 
@@ -98,6 +98,13 @@ Command: `uvicorn main:app --host 0.0.0.0 --port 8000` with `ALLOW_DEMO_MODE=tru
 | `GET /api/basin/abay/stats` | 200 with `data_status: demonstration` and the warning text |
 | `GET /api/tiles/abay/ndvi` | **503 `earth_engine_unavailable`** — raster products are never synthesised |
 | `GET /api/hydrology/stations` | **501 `hydrology_not_connected`** |
+| `GET /api/green-legacy/by-wereda` | 200, **147,748 bytes**, 1,398 statistics records, no geometry |
+| `GET /api/freshness`, `/api/cache` | 200 |
+| `GET /report?basin=tekeze&indicator=ndvi` | 200, 5,427 bytes |
+| `GET /api/basin/abay/stats?format=csv` | 200, metadata header populated (`basin_name`, `region`, `region_area_km2`) |
+| `GET /api/basin/abay/timeseries/ndvi?...&format=csv` | 200, metadata header populated |
+| `POST /api/basin/abay/change.csv` | **503 `earth_engine_unavailable`** — difference products are never synthesised |
+| `GET /api/basin/nope/stats` | **404 `unknown_basin`** with the list of valid basin ids |
 | `GET /static/app.js`, `/static/styles.css` | 200 |
 
 ---
@@ -114,6 +121,8 @@ These were found by executing the code, not by reading it:
 | 4 | EVI evaluated on unscaled DN instead of reflectance would return ~1e-4 instead of ~0.6 — the fake now stores DN as S2_SR_HARMONIZED does, which pins the requirement | `test_evi_expression_is_evaluated_with_correct_bands` | verified the chain divides by 10,000 before the indices |
 | 5 | Image-minus-image arithmetic (difference maps) had no valid-pixel intersection rule | `test_change_detection_reports_comparability` | masks are intersected for image operands |
 | 6 | Concurrent panel refreshes could double-append table rows | `frontend_smoke.mjs` | tables are built off-DOM and swapped in with `replaceChildren`; bootstrap is re-entrancy guarded |
+| 7 | Demonstration CSV exports wrote empty metadata lines (`# region_area_km2,`, `# basin_name,`) because the demo payloads lacked the keys the exporter reads | HTTP sweep of `?format=csv` | demo payloads now carry `region_area_km2`, `basin_name`, `region`, `region_label` |
+| 8 | `GET /api/green-legacy/by-wereda` returned 4.3 MB and dissolved scattered planting-site polygons into shapes that looked like wereda administrative boundaries | HTTP sweep of the endpoint | returns a statistics table (147,748 bytes) with an explicit note that wereda boundaries are absent from the source data |
 
 ---
 
