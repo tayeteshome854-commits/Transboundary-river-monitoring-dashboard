@@ -119,6 +119,9 @@ def prepare_assets(pdf_path: Path, out: Path) -> dict:
     a["website"] = save("monitoring_website", embedded(16, (1280, 599)))
     a["eqvol"] = save("earthquake_volcano_system", embedded(17, (1280, 695)))
     a["frims"] = save("frims", embedded(18, (1259, 641)))
+    # international example images (public domain, USGS); see assets/SOURCES.md
+    a["ex_lidar"] = HERE / "assets" / "example_lidar_oso_usgs.jpg"
+    a["ex_aerial"] = HERE / "assets" / "example_aerial_oso_usgs.jpg"
     return a
 
 
@@ -187,9 +190,10 @@ def slide_title(deck, A):
              size=12, color=WHITE),
         Para("Addis Ababa  ·  16–17 November 2026", size=12, color="#C9D6DE", sb=4),
     ])
-    s.box(0.7, 6.42, 4.9, 0.4, line=GOLD, lw=1.0, dash=True,
-          text="[ Presenter name · position — add before presenting ]",
-          size=10.5, color=GOLD, anchor="m", inset=(0.12, 0, 0.1, 0), name="Presenter placeholder")
+    s.text(0.7, 6.3, 6.5, 0.52, [
+        Para("PRESENTED BY", size=8.5, bold=True, color=GOLD, track=0.6),
+        Para("Taye Teshome", size=14, bold=True, color=WHITE, sb=3),
+    ], name="Presenter")
     # right side
     s.image(A["logo"], 8.35, 0.5, 4.45, 1.32, alt="Space Science and Geospatial Institute logo")
     s.image(A["ens_cont"], 8.35, 2.12, 4.45, 3.57, border=RULE,
@@ -208,7 +212,7 @@ OPENING (about 1 minute)
 - The map on this slide is from our own work: a national ensemble landslide susceptibility model. It tells us where landslides are more likely. It does not tell us when. We return to that distinction on the next slide.
 
 BEFORE PRESENTING
-- Replace the presenter placeholder with your name and position.
+- The title slide shows the presenter name only. Add your position under the name if you want it shown.
 - The ToR calls the institute "Ethiopian Space Science and Geo-spatial Institute (ESSGI)"; the logo and the DMC material use "Space Science and Geospatial Institute (SSGI)". This deck uses SSGI throughout.
 
 SOURCES: ToR title, Section 5.2 and Day 1 programme; DMC presentation slide 11 (map).
@@ -691,64 +695,63 @@ SOURCES: DMC presentation slides 9, 10 and 11.
 def slide_lidar(deck, A):
     s = deck.slide()
     t = chrome(s, A, "ToR 5.2 · CONTRIBUTIONS 1 AND 3 — HIGH-RESOLUTION ASSESSMENT",
-               "LiDAR and aerial photography add terrain detail that satellite-scale mapping cannot",
+               "LiDAR and aerial photography show terrain detail that satellites miss",
                tags=("existing", "verify"))
     steps = ["LiDAR and aerial imagery", "High-resolution terrain interpretation",
              "Landslide feature mapping and inventory", "Field validation",
              "Improved susceptibility and hazard assessment"]
     w = CW / 5
     for i, txt in enumerate(steps):
-        s.box(L + i * w, t, w + (0.0 if i == 4 else 0.02), 0.74, fill=NAVY if i == 4 else BLUE,
+        s.box(L + i * w, t, w + (0.0 if i == 4 else 0.02), 0.66, fill=NAVY if i == 4 else BLUE,
               shape="pentagon" if i == 0 else "chevron", text=txt, size=10.5, color=WHITE, bold=True,
               align="c", anchor="m", adj=0.32, ls=0.98)
-    yc = t + 0.98
-    yv = 6.02
+    yc = t + 0.86
+    yv = 6.1
     ch = yv - 0.16 - yc
-    cw_ = 3.78
+    g = 0.2
+    cw_ = (CW - g) / 2
+    pad = 0.18
+    cap_h = 0.32
+    ih = ch - 0.76 - 0.06 - cap_h - 0.1
+    iw = 3.45
     cards = [
-        ("LiDAR", [
-            "Detailed bare-earth terrain models, including under partial vegetation cover.",
-            "Slope, hillshade and roughness products reveal scarps, deposits, cracks and old landslide bodies.",
-            "Supports terrain characterisation and slope-instability investigation at site scale.",
+        ("LiDAR", "ex_lidar", [
+            "Bare-earth terrain models, including under partial vegetation cover.",
+            "Slope, hillshade and roughness reveal scarps, deposits, cracks and old landslide bodies.",
             "A reference for checking satellite-based mapping.",
-        ]),
-        ("Aerial photography", [
-            "Visual and stereo interpretation of landslide features and surrounding land use.",
-            "Multi-date photographs help identify and date past landslides for the inventory.",
+        ], "LiDAR terrain view of the 2014 Oso landslide, Washington, USA, coloured by elevation",
+           "LiDAR terrain view of the 2014 Oso landslide, Washington, USA."),
+        ("Aerial photography", "ex_aerial", [
+            "Visual and stereo interpretation of landslide features and land use.",
+            "Multi-date photographs help identify and date past landslides.",
             "A detailed base for field mapping and for locating exposed buildings and roads.",
-            "Checks landslide mapping done from satellite imagery.",
-        ]),
+        ], "Oblique aerial photograph of the 2014 Oso landslide, Washington, USA, showing the source area and path",
+           "Oblique aerial photograph of the same landslide."),
     ]
-    for i, (h, bullets) in enumerate(cards):
-        x = L + i * (cw_ + 0.2)
+    for i, (h, key, bullets, alt, cap) in enumerate(cards):
+        x = L + i * (cw_ + g)
         s.box(x, yc, cw_, ch, fill=LIGHT)
         s.box(x, yc, cw_, 0.06, fill=BLUE)
-        s.text(x + 0.2, yc + 0.18, cw_ - 0.4, 0.5, [
+        s.text(x + pad, yc + 0.17, cw_ - 2 * pad, 0.5, [
             Para(h, size=14, bold=True, color=NAVY),
             Para("POTENTIAL VALUE FOR LANDSLIDE ASSESSMENT", size=8.5, bold=True, color=PURPLE, track=0.5, sb=2),
         ])
-        s.text(x + 0.2, yc + 0.78, cw_ - 0.4, ch - 0.84,
-               [Para(b, bullet=True, sb=0 if j == 0 else 5) for j, b in enumerate(bullets)],
-               size=10.8, color=INK, ls=1.0)
-    x = L + 2 * (cw_ + 0.2)
-    iw = R - x
-    ph = 1.05
-    s.box(x, yc, iw, ph, fill=WHITE, line=CRIMSON, lw=1.25, dash=True, text=[
-        Para("PLACEHOLDER", size=9, bold=True, color=CRIMSON, track=0.6, align="c"),
-        Para("Insert an SSGI LiDAR hillshade or aerial photograph of a landslide-prone slope here.",
-             size=10, color=INK, align="c", sb=2),
-        Para("None was supplied in the source documents.", size=9, color=GREY, italic=True, align="c", sb=2),
-    ], anchor="m", inset=0.12, name="Placeholder: SSGI LiDAR or aerial image")
-    yi = yc + ph + 0.12
-    ih = ch - ph - 0.12 - 0.27
-    s.image(A["gamo_photo2"], x, yi, iw, ih, fit="cover", valign="b",
-            alt="SSGI field staff on landslide debris at the Gamo Zone site")
-    caption(s, x, yi + ih + 0.05, iw,
-            f"Field validation, Gamo Zone site. {SRC}, slide 8.", h=0.2)
+        yi = yc + 0.76
+        s.image(A[key], x + pad, yi, iw, ih, fit="cover", border=RULE, alt=alt)
+        s.box(x + pad, yi, 1.72, 0.22, fill=NAVY, text=Para("EXAMPLE · NOT SSGI DATA", track=0.5),
+              size=7.5, color=WHITE, bold=True, align="c", anchor="m", inset=0.0,
+              name="Label: example image, not SSGI data")
+        caption(s, x + pad, yi + ih + 0.06, cw_ - 2 * pad,
+                f"Illustrative example, not SSGI data. {cap} Image: U.S. Geological Survey, public domain.",
+                h=cap_h)
+        tx = x + pad + iw + 0.2
+        s.text(tx, yi - 0.02, x + cw_ - 0.14 - tx, ih + 0.04,
+               [Para(b, bullet=True, sb=0 if j == 0 else 8) for j, b in enumerate(bullets)],
+               size=11.5, color=INK, ls=1.0)
     s.box(L, yv, CW, BOTTOM - yv, fill=VERIFY_BG, text=(
-        "**To be confirmed by SSGI before presenting:** LiDAR and aerial photography coverage areas · "
-        "acquisition dates · point density · image scale or ground sampling distance · formats · "
-        "access conditions. None of these is stated in the source documents."),
+        "**To be confirmed by SSGI:** LiDAR and aerial photography coverage areas · acquisition dates · "
+        "point density · image scale or ground sampling distance · formats · access conditions. "
+        "The images above are international examples, to be replaced with SSGI data."),
           size=10, color="#4A3A00", anchor="m", inset=(0.18, 0.04, 0.18, 0.04), ls=1.0,
           name="To be verified")
     s.notes("""
@@ -758,13 +761,18 @@ LiDAR AND AERIAL PHOTOGRAPHY (about 3 minutes)
 - LiDAR: produces detailed bare-earth terrain models. Derivatives such as slope, hillshade and surface roughness make scarps, deposits, tension cracks and old landslide bodies visible, including some under partial vegetation cover. This supports detailed terrain characterisation and slope-instability investigation at priority sites.
 - Aerial photography: allows visual and stereo interpretation of landslide features. Where photographs from more than one date exist, they help identify and date past landslides, which matters because trigger development needs dated events. Photographs also give a detailed base for field mapping and for locating buildings and roads that are exposed.
 - Both can be used to check satellite-based mapping and to refine susceptibility assessment at local scale in the hotspots that the national map identifies.
-- The photograph shows field validation at the Gamo Zone site, the last link in the chain.
 
-THIS SLIDE NEEDS YOUR INPUT
-- The source documents contain no LiDAR or aerial imagery and no specifications. Replace the dashed placeholder with a real SSGI example, ideally a LiDAR hillshade of a landslide-prone slope.
+ABOUT THE TWO IMAGES: SAY THIS CLEARLY
+- Both images are international examples from the U.S. Geological Survey. They are NOT SSGI data and NOT from Ethiopia. They are here only to show what each technique produces.
+- Both show the same event: the landslide of 22 March 2014 near Oso, Washington State, USA.
+- Left: a LiDAR terrain view coloured by elevation. The USGS notes that the LiDAR data show landslides of similar magnitude had occurred at the site hundreds or thousands of years ago. That is the point for this workshop: LiDAR can reveal old landslide bodies that are hard to see on the ground or in satellite imagery.
+- Right: an oblique aerial photograph showing the whole landslide, from the source area to the end of its path. It is an oblique view, not a vertical survey photograph of the kind used for stereo mapping.
+
+THIS SLIDE STILL NEEDS YOUR INPUT
+- Replace the two example images with SSGI's own LiDAR and aerial imagery of an Ethiopian site when available.
 - Do not state coverage, acquisition dates, point density, camera specifications, image scale or accuracy unless you have confirmed them. If they are not confirmed by the workshop, say so plainly and commit to providing them in the dataset catalogue (slide 16).
 
-SOURCE: field photograph from DMC presentation slide 8. The statement that LiDAR and aerial photography are available at SSGI comes from the presentation brief, not from the DMC slides.
+SOURCES: LiDAR image: U.S. Geological Survey, National Geospatial Program, "Oso Landslide Lidar", www.usgs.gov/media/images/oso-landslide-lidar (public domain). Aerial photograph: U.S. Geological Survey, "Oso, Washington Landslide", www.usgs.gov/media/images/oso-washington-landslide (public domain). The statement that LiDAR and aerial photography are available at SSGI comes from the presentation brief, not from the DMC slides.
 """)
 
 
@@ -1273,9 +1281,10 @@ def slide_conclusion(deck, A):
         Para("Thank you", size=20, bold=True, color=WHITE),
         Para("www.ssgi.gov.et   ·   disaster.ssgi.gov.et", size=11, color="#C9D6DE", sb=8),
     ])
-    s.box(0.7, 6.42, pw - 1.3, 0.4, line=GOLD, lw=1.0, dash=True,
-          text="[ Presenter contact — add before presenting ]", size=10.5, color=GOLD, anchor="m",
-          inset=(0.12, 0, 0.1, 0), name="Contact placeholder")
+    s.text(0.7, 6.3, pw - 1.3, 0.52, [
+        Para("PRESENTED BY", size=8.5, bold=True, color=GOLD, track=0.6),
+        Para("Taye Teshome", size=14, bold=True, color=WHITE, sb=3),
+    ], name="Presenter")
     x = pw + 0.55
     w = R - x
     s.title(x, 0.62, w, 0.45, "What SSGI brings to the Landslide EAP", size=24, color=NAVY)
@@ -1324,7 +1333,7 @@ CONCLUSION (about 1 minute)
 - Thank the participants and invite questions. The next session is the discussion on remote sensing data, mapping capacity and monitoring opportunities.
 
 BEFORE PRESENTING
-- Replace the contact placeholder.
+- No personal e-mail or telephone number is shown. Add one under the name if you want participants to contact you directly.
 
 SOURCES: summary of earlier slides; web addresses from DMC presentation slides 1 and 15.
 """)
